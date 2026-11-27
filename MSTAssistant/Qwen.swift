@@ -13,6 +13,11 @@ enum QwenError: LocalizedError {
 }
 
 enum QwenClient {
+    /// 首选地址（兼容旧调用点）
+    static func resolve(_ raw: String) -> String {
+        candidates(raw).first ?? raw
+    }
+
     /// 候选接口地址：按顺序试，404/405 自动换下一个。
     /// 覆盖 OpenAI(/v1)、火山方舟豆包(/api/v3)、vLLM 自定义、Ollama(/api/chat)
     static func candidates(_ raw: String) -> [String] {
