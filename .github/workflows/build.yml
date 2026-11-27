@@ -1,0 +1,29 @@
+name: build
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install xcodegen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen generate
+      - name: Build
+        run: |
+          xcodebuild -project MSTAssistant.xcodeproj -scheme MSTAssistant \
+            -configuration Release -sdk iphoneos \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            -derivedDataPath build | tail -40
+      - name: Package IPA
+        run: |
+          mkdir -p out/Payload
+          cp -R build/Build/Products/Release-iphoneos/MSTAssistant.app out/Payload/
+          cd out && zip -qry MSTAssistant-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mstassistant-ipa
+          path: out/MSTAssistant-unsigned.ipa
