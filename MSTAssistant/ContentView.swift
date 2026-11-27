@@ -9,7 +9,8 @@ struct ContentView: View {
     @StateObject private var agent = AgentLoop()
 
     var body: some View {
-        NavigationView {
+        let _ = Breadcrumb.mark("body build")
+        return NavigationView {
             VStack(spacing: 0) {
                 Text(store.statusLine)
                     .font(.caption)
@@ -133,7 +134,8 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationView {
+        let _ = Breadcrumb.mark("body build")
+        return NavigationView {
             Form {
                 Section(header: Text("千问接口（OpenAI 兼容）")) {
                     TextField("接口地址", text: $config.endpoint)
@@ -167,7 +169,8 @@ struct AgentView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationView {
+        let _ = Breadcrumb.mark("body build")
+        return NavigationView {
             VStack(spacing: 10) {
                 HStack {
                     TextField("让它做什么，例如：打开设置并进入通用", text: $task)
