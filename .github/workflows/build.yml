@@ -14,6 +14,7 @@ jobs:
         run: xcodegen generate
       - name: Build
         run: |
+          set -o pipefail
           xcodebuild -project MSTAssistant.xcodeproj -scheme MSTAssistant \
             -configuration Release -sdk iphoneos \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
@@ -21,7 +22,9 @@ jobs:
       - name: Package IPA
         run: |
           mkdir -p out/Payload
-          cp -R build/Build/Products/Release-iphoneos/MSTAssistant.app out/Payload/
+          APP=build/Build/Products/Release-iphoneos/MSTAssistant.app
+          test -f "$APP/MSTAssistant" || { echo "可执行文件缺失"; exit 1; }
+          cp -R "$APP" out/Payload/
           cd out && zip -qry MSTAssistant-unsigned.ipa Payload
       - uses: actions/upload-artifact@v4
         with:
