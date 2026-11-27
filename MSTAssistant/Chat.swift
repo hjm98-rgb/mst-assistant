@@ -29,7 +29,7 @@ enum Provider: String, CaseIterable, Identifiable {
     }
     var endpoint: String {
         switch self {
-        case .qwen: return "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+        case .qwen: return "https://ws-lw2ccn0cbgy4dcty.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/chat/completions"
         case .deepseek: return "https://api.deepseek.com/v1/chat/completions"
         case .doubao: return "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
         case .kimi: return "https://api.moonshot.cn/v1/chat/completions"
@@ -41,7 +41,7 @@ enum Provider: String, CaseIterable, Identifiable {
     }
     var model: String {
         switch self {
-        case .qwen: return "qwen-plus"
+        case .qwen: return "qwen4-max"
         case .deepseek: return "deepseek-chat"
         case .doubao: return "doubao-seed-1-6-250615"
         case .kimi: return "kimi-k2-0905-preview"
@@ -53,7 +53,7 @@ enum Provider: String, CaseIterable, Identifiable {
     }
     var visionModel: String {
         switch self {
-        case .qwen: return "qwen-vl-max"
+        case .qwen: return "qwen3.8-omni-flash"
         case .deepseek: return ""
         case .doubao: return "doubao-1-5-vision-pro-32k-250115"
         case .kimi: return "moonshot-v1-8k-vision-preview"
@@ -65,7 +65,7 @@ enum Provider: String, CaseIterable, Identifiable {
     }
     var keyHint: String {
         switch self {
-        case .qwen: return "DashScope API Key（sk- 开头）"
+        case .qwen: return "百炼/MaaS 工作空间 API Key（sk- 开头）"
         case .deepseek: return "DeepSeek 平台 API Key（sk- 开头）"
         case .doubao: return "火山方舟 API Key；模型填接入点 ep-xxxx"
         case .kimi: return "Moonshot API Key（sk- 开头）"

@@ -27,6 +27,15 @@ enum QwenClient {
         if s.contains("/api/chat") { return [s] }
         var base = s.hasSuffix("/") ? String(s.dropLast()) : s
         var out: [String] = []
+        // 阿里云百炼/MaaS 工作空间：/compatible-mode/v1 是基址，必须再补 /chat/completions
+        if base.contains("/compatible-mode") {
+            if base.hasSuffix("/compatible-mode") { return [base + "/v1/chat/completions"] }
+            if base.hasSuffix("/v1") { return [base + "/chat/completions"] }
+            return [base + "/chat/completions", base + "/v1/chat/completions"]
+        }
+        if base.contains("aliyuncs.com") || base.contains("dashscope") || base.contains("maas") {
+            out.append(base + "/compatible-mode/v1/chat/completions")
+        }
         // 用户已写到版本段（/v1、/v3、/api/v3、/api）时只补 chat/completions
         let pathParts = base.components(separatedBy: "/")
         let looksVersioned = base.contains("/api/v") || base.contains("/compatible-mode")
