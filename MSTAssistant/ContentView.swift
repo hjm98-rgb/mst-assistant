@@ -133,21 +133,54 @@ struct SettingsView: View {
     var onSave: () -> Void
     @Environment(\.dismiss) private var dismiss
 
+    private var current: Provider { config.activeProvider }
+
     var body: some View {
         let _ = Breadcrumb.mark("body build")
         return NavigationView {
             Form {
-                Section(header: Text("千问接口（OpenAI 兼容）")) {
+                Section(header: Text("服务商（点一下自动填地址和模型）"),
+                        footer: Text("密钥只存在本机 Documents/mst/config.json，不上传。")) {
+                    ForEach(Provider.allCases) { p in
+                        Button {
+                            config.use(p)
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(p.title).foregroundColor(.primary)
+                                    if !p.endpoint.isEmpty {
+                                        Text(p.endpoint).font(.caption2).foregroundColor(.secondary).lineLimit(1)
+                                    }
+                                }
+                                Spacer()
+                                if current == p {
+                                    Image(systemName: "checkmark").foregroundColor(.accentColor)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Section(header: Text("当前配置")) {
                     TextField("接口地址", text: $config.endpoint)
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
-                    TextField("对话模型，如 qwen-plus", text: $config.model)
-                    TextField("视觉模型，如 qwen-vl-max", text: $config.visionModel)
+                        .font(.system(size: 13))
+                    TextField("对话模型", text: $config.model)
                         .autocapitalization(.none)
-                    SecureField("API Key", text: $config.apiKey)
+                        .disableAutocorrection(true)
+                    TextField("视觉模型（可留空）", text: $config.visionModel)
+                        .autocapitalization(.none)
+                        .disableAutocorrection(true)
+                    SecureField(current.keyHint, text: $config.apiKey)
                 }
+
+                Section(header: Text("系统提示词")) {
+                    TextEditor(text: $config.systemPrompt).frame(minHeight: 90)
+                }
+
                 Section(header: Text("采样参数"),
-                        footer: Text("不同网关支持的字段不一样；多出来的键（如 top_k、enable_thinking、repetition_penalty）写进下方额外参数，会原样合并进请求体。")) {
+                        footer: Text("各家支持的字段不同；多出来的键（top_k、enable_thinking、repetition_penalty、seed）写进下方额外参数，会原样合并进请求体。")) {
                     HStack {
                         Text("温度 temperature")
                         Spacer()
@@ -171,6 +204,7 @@ struct SettingsView: View {
                     Stepper("presence_penalty  \(String(format: "%.2f", config.presencePenalty))", value: $config.presencePenalty, in: -2...2, step: 0.1)
                     Stepper("frequency_penalty  \(String(format: "%.2f", config.frequencyPenalty))", value: $config.frequencyPenalty, in: -2...2, step: 0.1)
                 }
+
                 Section(header: Text("额外参数（JSON，可留空）")) {
                     TextEditor(text: $config.extraJSON)
                         .font(.system(size: 13, design: .monospaced))
@@ -178,9 +212,7 @@ struct SettingsView: View {
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
                 }
-                Section(header: Text("系统提示词")) {
-                    TextEditor(text: $config.systemPrompt).frame(minHeight: 90)
-                }
+
                 Section(footer: Text("数据全部存在本机 Documents/mst/，不上传第三方。")) {
                     Button("保存") { onSave(); dismiss() }
                 }

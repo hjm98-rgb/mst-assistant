@@ -9,11 +9,81 @@ struct ChatMessage: Identifiable, Codable, Equatable {
     var failed: Bool = false
 }
 
+
+/// 六家服务商预设
+enum Provider: String, CaseIterable, Identifiable {
+    case qwen, deepseek, doubao, kimi, openai, claude, ollama, custom
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .qwen: return "千问（阿里云百炼）"
+        case .deepseek: return "DeepSeek 深度求索"
+        case .doubao: return "豆包（火山方舟）"
+        case .kimi: return "Kimi（月之暗面）"
+        case .openai: return "GPT（OpenAI）"
+        case .claude: return "Claude（Anthropic）"
+        case .ollama: return "本机 Ollama 开源权重"
+        case .custom: return "自定义 / 自建网关"
+        }
+    }
+    var endpoint: String {
+        switch self {
+        case .qwen: return "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+        case .deepseek: return "https://api.deepseek.com/v1/chat/completions"
+        case .doubao: return "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
+        case .kimi: return "https://api.moonshot.cn/v1/chat/completions"
+        case .openai: return "https://api.openai.com/v1/chat/completions"
+        case .claude: return "https://api.anthropic.com/v1/messages"
+        case .ollama: return "http://127.0.0.1:11434/api/chat"
+        default: return ""
+        }
+    }
+    var model: String {
+        switch self {
+        case .qwen: return "qwen-plus"
+        case .deepseek: return "deepseek-chat"
+        case .doubao: return "doubao-seed-1-6-250615"
+        case .kimi: return "kimi-k2-0905-preview"
+        case .openai: return "gpt-4o-mini"
+        case .claude: return "claude-sonnet-4-5"
+        case .ollama: return "qwen25-15b"
+        default: return ""
+        }
+    }
+    var visionModel: String {
+        switch self {
+        case .qwen: return "qwen-vl-max"
+        case .deepseek: return ""
+        case .doubao: return "doubao-1-5-vision-pro-32k-250115"
+        case .kimi: return "moonshot-v1-8k-vision-preview"
+        case .openai: return "gpt-4o-mini"
+        case .claude: return "claude-sonnet-4-5"
+        case .ollama: return "qwen2.5vl:3b"
+        default: return ""
+        }
+    }
+    var keyHint: String {
+        switch self {
+        case .qwen: return "DashScope API Key（sk- 开头）"
+        case .deepseek: return "DeepSeek 平台 API Key（sk- 开头）"
+        case .doubao: return "火山方舟 API Key；模型填接入点 ep-xxxx"
+        case .kimi: return "Moonshot API Key（sk- 开头）"
+        case .openai: return "OpenAI API Key（sk- 开头）"
+        case .claude: return "Anthropic API Key（sk-ant- 开头）"
+        case .ollama: return "本地服务，密钥留空"
+        default: return "按服务商要求填写"
+        }
+    }
+    var isAnthropic: Bool { self == .claude }
+}
+
 struct ChatConfig: Codable {
     // 默认直连本机 Ollama，加载开源权重 qwen2.5vl:3b（无需密钥）
     var endpoint: String = "http://127.0.0.1:11434/api/chat"
     var model: String = "qwen2.5:3b"
     var visionModel: String = "qwen2.5vl:3b"
+    var provider: String = "ollama"
     var apiKey: String = ""
     var systemPrompt: String = "你是 MST 助手，运行在用户的越狱 iPad 上。回答简洁、直接、可执行。"
 
@@ -27,7 +97,7 @@ struct ChatConfig: Codable {
     var extraJSON: String = ""
 
     enum CodingKeys: String, CodingKey {
-        case endpoint, model, visionModel, apiKey, systemPrompt
+        case endpoint, model, visionModel, provider, apiKey, systemPrompt
         case temperature, topP, maxTokens, presencePenalty, frequencyPenalty, extraJSON
     }
 
@@ -38,6 +108,7 @@ struct ChatConfig: Codable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = ChatConfig()
         endpoint = (try? c.decodeIfPresent(String.self, forKey: .endpoint)) ?? d.endpoint
+        provider = (try? c.decodeIfPresent(String.self, forKey: .provider)) ?? d.provider
         model = (try? c.decodeIfPresent(String.self, forKey: .model)) ?? d.model
         visionModel = (try? c.decodeIfPresent(String.self, forKey: .visionModel)) ?? d.visionModel
         apiKey = (try? c.decodeIfPresent(String.self, forKey: .apiKey)) ?? d.apiKey
@@ -48,6 +119,16 @@ struct ChatConfig: Codable {
         presencePenalty = (try? c.decodeIfPresent(Double.self, forKey: .presencePenalty)) ?? d.presencePenalty
         frequencyPenalty = (try? c.decodeIfPresent(Double.self, forKey: .frequencyPenalty)) ?? d.frequencyPenalty
         extraJSON = (try? c.decodeIfPresent(String.self, forKey: .extraJSON)) ?? d.extraJSON
+    }
+
+    var activeProvider: Provider { Provider(rawValue: provider) ?? .custom }
+
+    /// 切换服务商时填入该家默认地址/模型，密钥保留
+    mutating func use(_ p: Provider) {
+        provider = p.rawValue
+        if !p.endpoint.isEmpty { endpoint = p.endpoint }
+        if !p.model.isEmpty { model = p.model }
+        visionModel = p.visionModel
     }
 
     /// 采样参数合并进请求体；空 extraJSON 或非法 JSON 时忽略，不影响主流程
@@ -118,8 +199,8 @@ final class ChatStore: ObservableObject {
         busy = true
         defer { busy = false }
 
-        if config.apiKey.isEmpty && config.endpoint.contains("dashscope") {
-            messages[idx].text = "DashScope 托管服务必须带密钥；如果用自己的 vLLM/llama.cpp 部署，把地址改成自建的，密钥留空就行。"
+        if config.apiKey.isEmpty && config.activeProvider != .ollama && config.activeProvider != .custom {
+            messages[idx].text = "当前选的是\(config.activeProvider.title)，必须填 API Key（\(config.activeProvider.keyHint)）。在设置里选服务商会自动填地址和模型，只剩密钥要你自己贴。"
             messages[idx].failed = true
             save()
             return
