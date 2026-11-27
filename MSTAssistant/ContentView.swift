@@ -5,6 +5,8 @@ struct ContentView: View {
     @State private var input = ""
     @State private var showSettings = false
     @State private var cleanResult = ""
+    @State private var showAgent = false
+    @StateObject private var agent = AgentLoop()
 
     var body: some View {
         NavigationView {
@@ -60,6 +62,12 @@ struct ContentView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Menu {
+                        Button("自动操作（看屏·点击）") { showAgent = true }
+                        Button("触摸注入自测") {
+                            let probe = TouchInjector.probe()
+                            let ok = TouchInjector.tap(ScreenGeometry.point(nx: 500, ny: 500))
+                            cleanResult = "能力：\(probe.describe)\n屏幕中心注入：\(ok ? "已发出" : "失败")"
+                        }
                         Button("清理白色巨魔残留") {
                             cleanResult = Cleaner.cleanStaleTrollStore()
                         }
@@ -76,6 +84,9 @@ struct ContentView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button { showSettings = true } label: { Image(systemName: "gearshape") }
                 }
+            }
+            .sheet(isPresented: $showAgent) {
+                AgentView(agent: agent, config: store.config)
             }
             .sheet(isPresented: $showSettings) {
                 SettingsView(config: $store.config) { store.save() }
@@ -126,7 +137,8 @@ struct SettingsView: View {
                     TextField("接口地址", text: $config.endpoint)
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
-                    TextField("模型名，如 qwen-plus", text: $config.model)
+                    TextField("对话模型，如 qwen-plus", text: $config.model)
+                    TextField("视觉模型，如 qwen-vl-max", text: $config.visionModel)
                         .autocapitalization(.none)
                     SecureField("API Key", text: $config.apiKey)
                 }
@@ -140,6 +152,62 @@ struct SettingsView: View {
             .navigationTitle("设置")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("关闭") { dismiss() } } }
+        }
+        .navigationViewStyle(.stack)
+    }
+}
+
+
+struct AgentView: View {
+    @ObservedObject var agent: AgentLoop
+    let config: ChatConfig
+    @State private var task = ""
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 10) {
+                HStack {
+                    TextField("让它做什么，例如：打开设置并进入通用", text: $task)
+                        .textFieldStyle(.roundedBorder)
+                }
+                HStack(spacing: 10) {
+                    Button {
+                        Task { await agent.start(task: task, config: config) }
+                    } label: {
+                        Label("开始", systemImage: "play.fill").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(agent.running || task.isEmpty)
+
+                    Button {
+                        agent.stop()
+                    } label: {
+                        Label("停止", systemImage: "stop.fill").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!agent.running)
+                }
+                Divider()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(Array(agent.log.enumerated()), id: \.offset) { _, line in
+                            Text(line).font(.system(size: 12, design: .monospaced))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(12)
+            .navigationTitle("自动操作")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("关闭") { dismiss() } }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("清空日志") { agent.log.removeAll() }
+                }
+            }
         }
         .navigationViewStyle(.stack)
     }

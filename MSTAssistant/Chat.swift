@@ -12,6 +12,7 @@ struct ChatMessage: Identifiable, Codable, Equatable {
 struct ChatConfig: Codable {
     var endpoint: String = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
     var model: String = "qwen-plus"
+    var visionModel: String = "qwen-vl-max"
     var apiKey: String = ""
     var systemPrompt: String = "你是 MST 助手，运行在用户的越狱 iPad 上。回答简洁、直接、可执行。"
 }
