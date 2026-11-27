@@ -63,8 +63,8 @@ final class ChatStore: ObservableObject {
         busy = true
         defer { busy = false }
 
-        if config.apiKey.isEmpty {
-            messages[idx].text = "还没填 API Key。点右上角齿轮，填入 DashScope（或任意 OpenAI 兼容）地址、模型名和密钥。"
+        if config.apiKey.isEmpty && config.endpoint.contains("dashscope") {
+            messages[idx].text = "DashScope 托管服务必须带密钥；如果用自己的 vLLM/llama.cpp 部署，把地址改成自建的，密钥留空就行。"
             messages[idx].failed = true
             save()
             return

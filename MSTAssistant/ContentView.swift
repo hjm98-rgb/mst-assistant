@@ -64,9 +64,11 @@ struct ContentView: View {
                     Menu {
                         Button("自动操作（看屏·点击）") { showAgent = true }
                         Button("触摸注入自测") {
+                            Breadcrumb.mark("tap-test start")
                             let probe = TouchInjector.probe()
                             let ok = TouchInjector.tap(ScreenGeometry.point(nx: 500, ny: 500))
-                            cleanResult = "能力：\(probe.describe)\n屏幕中心注入：\(ok ? "已发出" : "失败")"
+                            Breadcrumb.mark("tap-test probe=\(probe.describe) result=\(ok)")
+                            cleanResult = "能力：\(probe.describe)\n屏幕中心注入：\(ok ? "已发出" : "失败")\n\n上一步记录：\n\(Breadcrumb.read().suffix(300))"
                         }
                         Button("清理白色巨魔残留") {
                             cleanResult = Cleaner.cleanStaleTrollStore()
