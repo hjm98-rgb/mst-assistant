@@ -13,6 +13,26 @@ enum QwenError: LocalizedError {
 }
 
 enum QwenClient {
+    /// 把用户填的地址补成真实接口地址：
+    /// - 根地址 → +/v1/chat/completions
+    /// - 以 /v1 结尾 → +/chat/completions
+    /// - Ollama(/api/chat 或 11434) → 原样
+    static func resolve(_ raw: String) -> String {
+        let s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !s.isEmpty else { return s }
+        if isOllama(s) { return s }
+        if s.hasSuffix("/chat/completions") { return s }
+        if s.hasSuffix("/v1") { return s + "/chat/completions" }
+        if s.hasSuffix("/v1/") { return s + "chat/completions" }
+        if let u = URL(string: s) {
+            let path = u.path
+            if path.isEmpty || path == "/" {
+                return s.hasSuffix("/") ? s + "v1/chat/completions" : s + "/v1/chat/completions"
+            }
+        }
+        return s
+    }
+
     static func isOllama(_ endpoint: String) -> Bool {
         endpoint.contains("/api/chat") || endpoint.contains(":11434")
     }
@@ -45,7 +65,8 @@ enum QwenClient {
     /// OpenAI 兼容 /chat/completions（vLLM 自托管、DashScope 托管都走这套）
     static func chat(config: ChatConfig, history: [ChatMessage]) async throws -> String {
         if isOllama(config.endpoint) { return try await chatOllama(config: config, history: history) }
-        guard let url = URL(string: config.endpoint) else { throw QwenError.badURL }
+        let resolved = resolve(config.endpoint)
+        guard let url = URL(string: resolved) else { throw QwenError.badURL }
 
         var body: [String: Any] = [
             "model": config.model,

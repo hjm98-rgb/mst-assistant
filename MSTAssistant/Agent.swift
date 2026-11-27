@@ -83,7 +83,8 @@ final class AgentLoop: ObservableObject {
     }
 
     private func ask(task: String, image: String, config: ChatConfig, step: Int) async throws -> [String: Any] {
-        guard let url = URL(string: config.endpoint) else { throw QwenError.badURL }
+        let resolved = QwenClient.resolve(config.endpoint)
+        guard let url = URL(string: resolved) else { throw QwenError.badURL }
 
         let instruction = """
         你在操作一台 iPad，任务是：\(task)
@@ -115,7 +116,9 @@ final class AgentLoop: ObservableObject {
 
         let (data, resp) = try await URLSession.shared.data(for: req)
         let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
-        guard code == 200 else { throw QwenError.http(code, String(data: data, encoding: .utf8) ?? "") }
+        guard code == 200 else {
+            throw QwenError.http(code, "请求地址 \(resolved)\n" + (String(data: data, encoding: .utf8) ?? ""))
+        }
         guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let choices = obj["choices"] as? [[String: Any]],
               let msg = choices.first?["message"] as? [String: Any],
