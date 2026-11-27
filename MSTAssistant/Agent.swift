@@ -96,7 +96,7 @@ final class AgentLoop: ObservableObject {
         如果界面上已经执行完，就用 done。
         """
 
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "model": config.visionModel,
             "messages": [[
                 "role": "user",
@@ -107,6 +107,7 @@ final class AgentLoop: ObservableObject {
             ]],
             "stream": false
         ]
+        config.applySampling(to: &body, isOllama: false)
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.timeoutInterval = 40

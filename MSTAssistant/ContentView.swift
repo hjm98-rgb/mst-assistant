@@ -146,6 +146,38 @@ struct SettingsView: View {
                         .autocapitalization(.none)
                     SecureField("API Key", text: $config.apiKey)
                 }
+                Section(header: Text("采样参数"),
+                        footer: Text("不同网关支持的字段不一样；多出来的键（如 top_k、enable_thinking、repetition_penalty）写进下方额外参数，会原样合并进请求体。")) {
+                    HStack {
+                        Text("温度 temperature")
+                        Spacer()
+                        Text(String(format: "%.2f", config.temperature)).foregroundColor(.secondary)
+                    }
+                    Slider(value: $config.temperature, in: 0...2, step: 0.05)
+                    HStack {
+                        Text("top_p")
+                        Spacer()
+                        Text(String(format: "%.2f", config.topP)).foregroundColor(.secondary)
+                    }
+                    Slider(value: $config.topP, in: 0...1, step: 0.01)
+                    HStack {
+                        Text("最大输出 tokens")
+                        Spacer()
+                        TextField("512", value: $config.maxTokens, formatter: NumberFormatter())
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 90)
+                    }
+                    Stepper("presence_penalty  \(String(format: "%.2f", config.presencePenalty))", value: $config.presencePenalty, in: -2...2, step: 0.1)
+                    Stepper("frequency_penalty  \(String(format: "%.2f", config.frequencyPenalty))", value: $config.frequencyPenalty, in: -2...2, step: 0.1)
+                }
+                Section(header: Text("额外参数（JSON，可留空）")) {
+                    TextEditor(text: $config.extraJSON)
+                        .font(.system(size: 13, design: .monospaced))
+                        .frame(minHeight: 60)
+                        .autocapitalization(.none)
+                        .disableAutocorrection(true)
+                }
                 Section(header: Text("系统提示词")) {
                     TextEditor(text: $config.systemPrompt).frame(minHeight: 90)
                 }

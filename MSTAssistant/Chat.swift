@@ -16,6 +16,60 @@ struct ChatConfig: Codable {
     var visionModel: String = "qwen2.5vl:3b"
     var apiKey: String = ""
     var systemPrompt: String = "你是 MST 助手，运行在用户的越狱 iPad 上。回答简洁、直接、可执行。"
+
+    // 采样参数
+    var temperature: Double = 0.7
+    var topP: Double = 0.9
+    var maxTokens: Int = 512
+    var presencePenalty: Double = 0.0
+    var frequencyPenalty: Double = 0.0
+    /// 额外请求字段（JSON 对象文本），如 {"top_k":20,"enable_thinking":false}
+    var extraJSON: String = ""
+
+    enum CodingKeys: String, CodingKey {
+        case endpoint, model, visionModel, apiKey, systemPrompt
+        case temperature, topP, maxTokens, presencePenalty, frequencyPenalty, extraJSON
+    }
+
+    init() {}
+
+    // 兼容旧 config.json：缺字段就用默认值
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = ChatConfig()
+        endpoint = (try? c.decodeIfPresent(String.self, forKey: .endpoint)) ?? d.endpoint
+        model = (try? c.decodeIfPresent(String.self, forKey: .model)) ?? d.model
+        visionModel = (try? c.decodeIfPresent(String.self, forKey: .visionModel)) ?? d.visionModel
+        apiKey = (try? c.decodeIfPresent(String.self, forKey: .apiKey)) ?? d.apiKey
+        systemPrompt = (try? c.decodeIfPresent(String.self, forKey: .systemPrompt)) ?? d.systemPrompt
+        temperature = (try? c.decodeIfPresent(Double.self, forKey: .temperature)) ?? d.temperature
+        topP = (try? c.decodeIfPresent(Double.self, forKey: .topP)) ?? d.topP
+        maxTokens = (try? c.decodeIfPresent(Int.self, forKey: .maxTokens)) ?? d.maxTokens
+        presencePenalty = (try? c.decodeIfPresent(Double.self, forKey: .presencePenalty)) ?? d.presencePenalty
+        frequencyPenalty = (try? c.decodeIfPresent(Double.self, forKey: .frequencyPenalty)) ?? d.frequencyPenalty
+        extraJSON = (try? c.decodeIfPresent(String.self, forKey: .extraJSON)) ?? d.extraJSON
+    }
+
+    /// 采样参数合并进请求体；空 extraJSON 或非法 JSON 时忽略，不影响主流程
+    func applySampling(to body: inout [String: Any], isOllama: Bool) {
+        if isOllama {
+            var opts: [String: Any] = ["temperature": temperature, "top_p": topP, "num_predict": maxTokens]
+            if presencePenalty != 0 { opts["presence_penalty"] = presencePenalty }
+            if frequencyPenalty != 0 { opts["frequency_penalty"] = frequencyPenalty }
+            body["options"] = opts
+        } else {
+            body["temperature"] = temperature
+            body["top_p"] = topP
+            if maxTokens > 0 { body["max_tokens"] = maxTokens }
+            if presencePenalty != 0 { body["presence_penalty"] = presencePenalty }
+            if frequencyPenalty != 0 { body["frequency_penalty"] = frequencyPenalty }
+        }
+        let e = extraJSON.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !e.isEmpty, let d = e.data(using: .utf8),
+           let obj = try? JSONSerialization.jsonObject(with: d) as? [String: Any] {
+            for (k, v) in obj { body[k] = v }
+        }
+    }
 }
 
 /// 本地持久化：/Documents/mst/chat.json + config.json

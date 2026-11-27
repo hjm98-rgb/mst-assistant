@@ -45,7 +45,8 @@ enum QwenClient {
         for m in history.suffix(20) where !m.text.isEmpty && !m.failed {
             msgs.append(["role": m.role.rawValue, "content": m.text])
         }
-        let body: [String: Any] = ["model": config.model, "messages": msgs, "stream": false]
+        var body: [String: Any] = ["model": config.model, "messages": msgs, "stream": false]
+        config.applySampling(to: &body, isOllama: true)
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.timeoutInterval = 120
@@ -73,8 +74,7 @@ enum QwenClient {
             "messages": messagesPayload(config: config, history: history),
             "stream": false
         ]
-        // DashScope 兼容模式接受 temperature；给个温和值
-        body["temperature"] = 0.4
+        config.applySampling(to: &body, isOllama: false)
 
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
