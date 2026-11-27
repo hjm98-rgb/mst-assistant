@@ -13,8 +13,38 @@ enum QwenError: LocalizedError {
 }
 
 enum QwenClient {
-    /// OpenAI 兼容 /chat/completions（DashScope 千问、vLLM 自托管都走这套）
+    static func isOllama(_ endpoint: String) -> Bool {
+        endpoint.contains("/api/chat") || endpoint.contains(":11434")
+    }
+
+    /// Ollama 原生 /api/chat：本地开源权重，不需要密钥
+    static func chatOllama(config: ChatConfig, history: [ChatMessage]) async throws -> String {
+        guard let url = URL(string: config.endpoint) else { throw QwenError.badURL }
+        var msgs: [[String: Any]] = []
+        if !config.systemPrompt.isEmpty { msgs.append(["role": "system", "content": config.systemPrompt]) }
+        for m in history.suffix(20) where !m.text.isEmpty && !m.failed {
+            msgs.append(["role": m.role.rawValue, "content": m.text])
+        }
+        let body: [String: Any] = ["model": config.model, "messages": msgs, "stream": false]
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.timeoutInterval = 120
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !config.apiKey.isEmpty { req.setValue("Bearer \(config.apiKey)", forHTTPHeaderField: "Authorization") }
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
+        guard code == 200 else { throw QwenError.http(code, String(data: data, encoding: .utf8) ?? "") }
+        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let msg = obj["message"] as? [String: Any],
+              let content = msg["content"] as? String else { throw QwenError.empty }
+        return content.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// OpenAI 兼容 /chat/completions（vLLM 自托管、DashScope 托管都走这套）
     static func chat(config: ChatConfig, history: [ChatMessage]) async throws -> String {
+        if isOllama(config.endpoint) { return try await chatOllama(config: config, history: history) }
         guard let url = URL(string: config.endpoint) else { throw QwenError.badURL }
 
         var body: [String: Any] = [

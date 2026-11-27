@@ -10,9 +10,10 @@ struct ChatMessage: Identifiable, Codable, Equatable {
 }
 
 struct ChatConfig: Codable {
-    var endpoint: String = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
-    var model: String = "qwen-plus"
-    var visionModel: String = "qwen-vl-max"
+    // 默认直连本机 Ollama，加载开源权重 qwen2.5vl:3b（无需密钥）
+    var endpoint: String = "http://127.0.0.1:11434/api/chat"
+    var model: String = "qwen2.5:3b"
+    var visionModel: String = "qwen2.5vl:3b"
     var apiKey: String = ""
     var systemPrompt: String = "你是 MST 助手，运行在用户的越狱 iPad 上。回答简洁、直接、可执行。"
 }
